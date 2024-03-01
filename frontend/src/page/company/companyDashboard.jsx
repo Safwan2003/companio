@@ -1,12 +1,7 @@
-// CompanyDashboard.jsx
-
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
-import EmployeeCrud from './Emplyeecrud';
+import React from 'react';
+import { Outlet, useNavigate, Link } from 'react-router-dom';
 
 const CompanyDashboard = () => {
-  const [userData, setUserData] = useState({});
   const navigate = useNavigate();
 
   const logout = () => {
@@ -16,55 +11,48 @@ const CompanyDashboard = () => {
     navigate('/company');
   };
 
-  useEffect(() => {
-    // Fetch user data when the component mounts
-    fetchUserData();
-  }, []);
-
-  const fetchUserData = async () => {
-    try {
-      const token = localStorage.getItem('authToken');
-
-      if (!token) {
-        // Handle case where token is not available
-        navigate('/company'); // Redirect to auth page
-        return;
-      }
-
-      const res = await axios.get('http://localhost:2000/api/auth', {
-        headers: {
-          Authorization: `${token}`,
-        },
-      });
-
-      const { name, email } = res.data;
-      setUserData({ name, email });
-    } catch (err) {
-      console.error('Error fetching user data:', err);
-
-      if (err.response && err.response.status === 401) {
-        // Unauthorized, redirect to auth
-        navigate('/company');
-      }
-    }
-  };
-
   return (
-    <div className="bg-gray-100 min-h-screen flex flex-col items-center justify-center">
-      <div className="bg-white p-8 rounded-md shadow-md">
-        <h1 className="text-3xl font-bold mb-4">Welcome to the Company Dashboard</h1>
-        {/* Display user data as needed */}
-        <p className="text-lg font-semibold mb-2">Name: {userData.name}</p>
-        <p className="text-lg font-semibold mb-4">Email: {userData.email}</p>
-
-        <button
-          className="bg-red-500 text-white px-4 py-2 rounded-md mb-4 hover:bg-red-600 focus:outline-none"
-          onClick={logout}
-        >
-          LOGOUT
-        </button>
-
-        <EmployeeCrud />
+    <div className='flex flex-col h-screen'>
+      {/* Header */}
+      <div className='flex justify-between items-center p-3 bg-blue-500'>
+        <div className='font-bold text-2xl text-white uppercase'>Company Dashboard</div>
+        <button onClick={logout} className='bg-red-500 p-2 px-3 rounded text-white font-semibold'>Logout</button>
+      </div>
+      
+      {/* Main Content */}
+      <div className='flex flex-grow'>
+        {/* Sidebar */}
+        <div className='w-full md:w-1/6 max-md:w-[15rem] bg-gray-100 p-4'>
+          <h2 className='text-lg font-semibold mb-4'>Sidebar</h2>
+          <ul className='space-y-2'>
+            <li>
+              <Link to='companyprofile' className='text-blue-500 cursor-pointer hover:font-bold'>Company Profile</Link>
+            </li>
+            <li>
+              <Link to='employeecrud' className='text-blue-500 cursor-pointer hover:font-bold'>Employee Management</Link>
+            </li>
+            <li>
+              <Link to='taskdashboard' className='text-blue-500 cursor-pointer hover:font-bold'>Task Management</Link>
+            </li>
+            <li>
+              <Link to='analytics' className='text-blue-500 cursor-pointer hover:font-bold'>Analytics</Link>
+            </li>
+            <li>
+              <Link to='attendancecompany' className='text-blue-500 cursor-pointer hover:font-bold'>Attendance</Link>
+            </li>
+            <li>
+              {/* <Link to='/chat' className='text-blue-500 cursor-pointer hover:font-bold'>Chat</Link> */}
+            </li>
+            <li>
+              <Link to='chatbot' className='text-blue-500 cursor-pointer hover:font-bold'>Ai chatbot</Link>
+            </li>
+          </ul>
+        </div>
+        
+        {/* Content Area */}
+        <div className='w-full md:w-5/6 p-4'>
+          <Outlet />
+        </div>
       </div>
     </div>
   );

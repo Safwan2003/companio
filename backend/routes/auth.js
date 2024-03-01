@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
 const Company = require('../models/company');
-const User = require('../models/user');
+const User =require('../models/user')
 const auth =require('../middleware/companyauth')
 const userauth = require('../middleware/userauth');
 const mongoose = require('mongoose');
@@ -190,41 +190,32 @@ router.post('/userlogin', [
 
 
 
-
-router.get('/getuserdetails', userauth, async (req, res) => {
+//get by params user
+router.get('/:userid', userauth, async (req, res) => {
   try {
-    
-    const getuser = await User.findById(req.user.id).select('-password');
-
-    if (!getuser) {
-      return res.status(404).json({ msg: 'User not found' });
-    }
-
-    res.json(getuser);
-  } catch (error) {
-    console.error(error.message);
-    res.status(500).json({ msg: 'Server Error' });
+    const userId = req.params.userid; // Corrected variable name
+    const user = await User.findById(userId).select('-password'); // Corrected variable name
+    return res.json(user);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ msg: 'Server error!' });
   }
 });
 
-router.get('/:userid', userauth, async (req, res) => {
+
+
+
+
+
+router.get('/getuserdetails', userauth, async (req, res) => {
   try {
-    const userId = req.params.userid;
-
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ msg: 'Invalid user ID' });
-    }
-
-    const getuser = await User.findById(userId).select('-password');
-
-    if (!getuser) {
-      return res.status(404).json({ msg: 'User not found' });
-    }
-
-    res.json(getuser);
-  } catch (error) {
-    console.error(error.message);
-    res.status(500).json({ msg: 'Server message' });
+    const id =req.user.id
+    console.log(id)
+    const userdata =await User.findById(id)
+    res.json(userdata)
+} catch (error) {
+    console.error('Error:', error.message);
+    res.status(500).json({ msg: 'Server error' });
   }
 });
 

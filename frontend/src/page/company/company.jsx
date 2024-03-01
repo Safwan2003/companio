@@ -3,11 +3,11 @@ import Auth from './Auth'
 
 const company = () => {
   return (
-    <div>company
-        <br></br>
-    
-    <Auth/>
+    <div className='bg-gray-100'>
+
+      <Auth/>
     </div>
+    
   )
 }
 

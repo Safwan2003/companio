@@ -87,7 +87,7 @@ const Auth = ({ authType, setToken }) => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="max-w-md w-full p-8 bg-white rounded-md shadow-md">
-        <div className="text-3xl font-bold mb-6 text-center">{isLogin ? 'Login' : 'Register'}</div>
+        <div className="text-3xl font-bold mb-6 text-center">{isLogin ? 'Company Login' : ' Company Register'}</div>
 
         <form onSubmit={handleSubmit} className="mb-6">
           <label className="block text-gray-700 mb-2">Email</label>

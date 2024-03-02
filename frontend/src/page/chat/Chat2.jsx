@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { getCompanyEmployees } from './api';
+import React, { useState, useEffect, useRef } from 'react';
+import { getCompanyEmployees, postSingleChat, getSingleChat } from './api';
 import socketManager from './SocketManager';
 
 const Chat2 = () => {
@@ -8,33 +8,72 @@ const Chat2 = () => {
   const [selectedRecipient, setSelectedRecipient] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [users, setUsers] = useState({});
+  const [senderId, setSenderId] = useState(null); // State to store sender's ID
+  const [selectedRoom, setSelectedRoom] = useState(null); // State to store selected room
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    // Function to decode user ID from token
+    const decodeUserIdFromToken = (token) => {
+      try {
+        const parts = token.split('.');
+        if (parts.length !== 3) {
+          throw new Error('Invalid JWT format');
+        }
+
+        const decoded = JSON.parse(atob(parts[1]));
+        return decoded.user.id;
+      } catch (error) {
+        console.error('Error decoding JWT:', error.message);
+        return null;
+      }
+    };
+
+    // Function to fetch sender ID
+    const fetchSenderId = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        const id = decodeUserIdFromToken(token);
+        setSenderId(id);
+        console.log("senderId: ", id);
+        return id; // Return the sender ID
+      } catch (error) {
+        console.error('Error fetching sender data:', error);
+        throw error; // Throw error to be caught by the caller
+      }
+    };
+
+    // Use fetchSenderId directly inside the useEffect
+    fetchSenderId()
+      .then(id => setSenderId(id))
+      .catch(error => console.error('Error setting sender ID:', error));
+  }, []);
 
   useEffect(() => {
     socketManager.connect();
     const socket = socketManager.getSocket();
-  
+
     socket.on('connect', () => {
       console.log('Connected to server');
-      if (selectedRecipient) {
-        socket.emit('user_connected', selectedRecipient._id);
+      if (selectedRecipient && selectedRoom) {
+        socket.emit('user_connected', { userId: senderId, room: selectedRoom }); // Emit user ID and room
       }
     });
-  
     socket.on('disconnect', () => {
       console.log('Disconnected from server');
     });
-  
+
     socket.on('private message', ({ senderId, message }) => {
       setChatMessages(prevMessages => [...prevMessages, { senderId, message }]);
-    });  
+      scrollToBottom();
+    });
 
     return () => {
       socketManager.disconnect();
       socket.off('private message');
     };
-  }, [selectedRecipient]);
-  
+  }, [selectedRecipient, senderId, selectedRoom]);
+
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -55,62 +94,41 @@ const Chat2 = () => {
     fetchUsers();
   }, []);
 
-  const handleRecipientSelect = recipient => {
+  const handleRecipientSelect = async(recipient, room) => {
+    // Sort senderId and recipient._id alphabetically
+    const roomParticipants = [senderId, recipient._id].sort();
+    const newRoom = roomParticipants.join('_');
+
     setSelectedRecipient(recipient);
-    setChatMessages([]);
+    setSelectedRoom(newRoom); // Set selected room
+    const res = await getSingleChat(recipient._id);
+
+    setChatMessages(res.messages);
+    scrollToBottom();
   };
 
-  // const handleMessageSend = (e) => {
-  //   e.preventDefault();
-  //   if (newMessage.trim() === '' || !selectedRecipient) {
-  //     return;
-  //   }
-  //   const socket = socketManager.getSocket();
-  //   socket.emit('sendmessage', { recipientId: selectedRecipient._id, message: newMessage });
-  //   // Use socket.id as the sender's ID
-  //   setChatMessages(prevMessages => [...prevMessages, { message: newMessage, senderId: socket.id }]);
-  //   setNewMessage('');
-  // };
-
-
-
-
-
-
-
-  const handleMessageSend = (e) => {
+  const handleMessageSend = async(e) => {
     e.preventDefault();
-    if (newMessage.trim() === '' || !selectedRecipient) {
+    if (newMessage.trim() === '' || !selectedRecipient || !selectedRoom) {
       return;
     }
-    const socket = socketManager.getSocket();
-    const senderId = socket.id;
-    const newChatMessage = { message: newMessage, senderId };
-  
-    // Update chat messages for sender
-    
-    // Update chat messages for recipient only if the selected recipient matches the sender
-    // if (selectedRecipient._id === senderId) {
-      //   setChatMessages(prevMessages => [...prevMessages, newChatMessage]);
-      // }
-      
-      // Emit the message to the server
-      socket.emit('sendmessage', { recipientId: selectedRecipient._id, message: newMessage });
-      setChatMessages(prevMessages => [...prevMessages, newChatMessage]);
-      
-    setNewMessage('');
+    try {
+      const socket = socketManager.getSocket();
+      await postSingleChat(selectedRecipient._id, newMessage);
+      const res = await getSingleChat(selectedRecipient._id);
+      setChatMessages(res.messages);
+      scrollToBottom();
+      socket.emit('sendmessage', { room: selectedRoom, recipientId: selectedRecipient._id, message: newMessage, senderId: senderId });
+      // Note: No need to update chatMessages state here as it will be updated upon receiving the 'private message' event
+      setNewMessage('');
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
   };
-  
 
-
-
-
-
-
-
-
-
-
+  const scrollToBottom = () => {
+    messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+  };
 
   return (
     <div className='flex h-screen'>
@@ -122,7 +140,7 @@ const Chat2 = () => {
               <li
                 key={company._id}
                 className={`cursor-pointer p-2 rounded-md ${selectedRecipient === company ? 'bg-blue-500 text-white' : 'hover:bg-gray-300'}`}
-                onClick={() => handleRecipientSelect(company)}
+                onClick={() => handleRecipientSelect(company, 'company')} // Pass room name
               >
                 <div>
                   {company.name}
@@ -134,7 +152,7 @@ const Chat2 = () => {
               <li
                 key={employee._id}
                 className={`cursor-pointer p-2 rounded-md ${selectedRecipient === employee ? 'bg-blue-500 text-white' : 'hover:bg-gray-300'}`}
-                onClick={() => handleRecipientSelect(employee)}
+                onClick={() => handleRecipientSelect(employee, employee.name)} // Pass room name
               >
                 <div>{employee.name}</div>
               </li>
@@ -145,14 +163,17 @@ const Chat2 = () => {
       <div className="flex flex-col w-2/3">
         <div className="bg-gray-200 flex-grow p-4 overflow-y-auto">
           <div className="space-y-4">
-            {chatMessages.map((message, index) => (
-              <div className={message.senderId === socketManager.getSocket().id ? "flex items-start" : "flex items-end justify-end"} key={index}>
-                <div className={message.senderId === socketManager.getSocket().id ? "bg-gray-300 p-3 rounded-lg" : "bg-blue-500 text-white p-3 rounded-lg"}>
-                  <p className="text-sm">{message.message}</p>
+            {
+              chatMessages.map((message, index) => (
+                <div className={message.sender === senderId ? "flex items-start" : "flex items-end justify-end"} key={index}>
+                  <div className={message.sender === senderId ? "bg-gray-300 p-3 rounded-lg" : "bg-blue-500 text-white p-3 rounded-lg"}>
+                    <p className="text-sm">{message.content}</p>
+                  </div>
+                  <img className="w-8 h-8 rounded-full ml-2" src="https://via.placeholder.com/50" alt="Sender" />
                 </div>
-                <img className="w-8 h-8 rounded-full ml-2" src="https://via.placeholder.com/50" alt="Sender" />
-              </div>
-            ))}
+              ))
+            }
+            <div ref={messagesEndRef}></div>
           </div>
         </div>
         <form className="bg-gray-300 p-4 flex items-center" onSubmit={handleMessageSend}>

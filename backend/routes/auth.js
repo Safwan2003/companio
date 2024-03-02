@@ -72,7 +72,7 @@ router.post('/', [
       },
     };
 
-    jwt.sign(payload, process.env.JWTSECRET, { expiresIn: '30m' }, (err, token) => {
+    jwt.sign(payload, process.env.JWTSECRET, { expiresIn: '1hr' }, (err, token) => {
       if (err) throw err;
       return res.json({
         token,
@@ -176,7 +176,7 @@ router.post('/userlogin', [
       },
     };
 
-    jwt.sign(payload, process.env.JWTSECRET, { expiresIn: '30m' }, (err, token) => {
+    jwt.sign(payload, process.env.JWTSECRET, { expiresIn: '1hr' }, (err, token) => {
       if (err) throw err;
       return res.json({
         token,
